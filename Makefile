@@ -20,7 +20,7 @@ SBV_UTEST			= SBVUTest
 
 .PHONY:bench
 bench:		$(BENCHMARK)
-test/run_query.o: include/SuccinctBitVector.hpp
+test/run_query.o: include/SuccinctBitVector.hpp ../opti/rank.hpp
 $(BENCHMARK):	$(OBJS)
 		$(CC) $(CFLAGS) $(WFLAGS) $(OBJS) $(INCLUDE) $(LDFLAGS) $(LIBS) -o $@
 
