@@ -254,6 +254,7 @@ class SuccinctRank {
     }
   }
 
+public:
   uint32_t rank1(uint32_t pos) const {
     CHECK(pos <= size_);
 
@@ -274,6 +275,7 @@ class SuccinctRank {
 
     return r;
   }
+private:
 
   uint32_t  size_;
   std::shared_ptr<uint32_t> mem_;
@@ -441,6 +443,7 @@ class SuccinctBitVector {
     else
       return st0_->select(pos);
   }
+  const SuccinctRank& getRank() const { return *rk_; }
 
  private:
   /* A sequence of bit-array */

@@ -1,10 +1,10 @@
 CC				= g++
-CFLAGS		+= -D__USE_SSE_POPCNT__ -O2 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing
-CFLAGS		+= -floop-optimize -march=nocona
+CFLAGS		+= -D__USE_SSE_POPCNT__ -O3 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing
+CFLAGS		+= -floop-optimize -march=native
 WFLAGS		= -Wall
 LDFLAGS		= -L/usr/local/lib
-INCLUDE		= -I./include
-LIBS			= -msse2 -lglog
+INCLUDE		= -I./include -I$(HOME)/local/include/ -I../opti
+LIBS			= -msse4 -lglog -L$(HOME)/local/lib
 SRCS			= test/run_query.cpp
 OBJS			= $(subst .cpp,.o,$(SRCS))
 BENCHMARK	= run_query 
@@ -20,7 +20,7 @@ SBV_UTEST			= SBVUTest
 
 .PHONY:bench
 bench:		$(BENCHMARK)
-
+test/run_query.o: include/SuccinctBitVector.hpp
 $(BENCHMARK):	$(OBJS)
 		$(CC) $(CFLAGS) $(WFLAGS) $(OBJS) $(INCLUDE) $(LDFLAGS) $(LIBS) -o $@
 

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "SuccinctBitVector.hpp"
+#include "rank.hpp"
 
 namespace {
 
@@ -107,10 +108,12 @@ int main(int argc, char **argv) {
 #endif /* NDEBUG */
 
   int nloop = p.get<int>("nloop");
-  int bsz = p.get<int>("bitsz");
+  int bsz = p.get<int>("bitsz") & ~255; // restriction of rank.hpp
 
   /* Generate a sequence of bits */
   bv.init(bsz);
+  mie::BitVector my_bv;
+  my_bv.resize(bsz);
 
   uint32_t nbits = 0;
   uint64_t thres = (1ULL << 32) * BIT_DENSITY;
@@ -118,10 +121,13 @@ int main(int argc, char **argv) {
     if (__xor128() < thres) {
       nbits++;
       bv.set_bit(1, i);
+      my_bv.set(i, true);
     }
   }
 
   bv.build();
+  mie::SuccinctBitVector my_sbv;
+  my_sbv.init(my_bv.getBlock(), my_bv.getBlockSize());
 
   /* Generate test data-set */
   std::shared_ptr<uint32_t> rkwk(new uint32_t[nloop],
@@ -143,16 +149,40 @@ int main(int argc, char **argv) {
     std::vector<double> stv;
 
     /* A benchmark for rank */
+    uint32_t chk = 0;
     for (size_t i = 0; i < NTRIALS; i++) {
       Timer t;
 
+#if 1
+      for (int j = 0; j < nloop; j++) {
+        chk += bv.getRank().rank1((rkwk.get())[j] + 1);
+      }
+#else
       for (int j = 0; j < nloop; j++)
         bv.rank((rkwk.get())[j], 1);
+#endif
 
       rtv.push_back(t.elapsed());
     }
 
     __show_result(rtv, nloop, "--rank");
+    printf("   chk=%u\n", chk);
+
+#if 1
+    chk = 0;
+    rtv.clear();
+    for (size_t i = 0; i < NTRIALS; i++) {
+      Timer t;
+
+      for (int j = 0; j < nloop; j++) {
+        chk += my_sbv.rank1((rkwk.get())[j]);
+      }
+
+      rtv.push_back(t.elapsed());
+    }
+    __show_result(rtv, nloop, "--my_rank");
+    printf("my chk=%u\n", chk);
+#endif
 
     /* A benchmark for select */
     for (size_t i = 0; i < NTRIALS; i++) {
