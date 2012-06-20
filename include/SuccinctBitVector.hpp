@@ -103,7 +103,7 @@ static uint32_t selectPos(block_t blk, uint32_t r) {
 
 static uint32_t *cachealign_alloc(uint64_t size) {
   assert(size != 0);
-  return _aligned_malloc(DWORD2BYTE(size), DWORD2BYTE(CACHELINE_SZ));
+  return (uint32_t*)_aligned_malloc(DWORD2BYTE(size), DWORD2BYTE(CACHELINE_SZ));
 }
 
 static void cachealign_free(uint32_t *p) {
