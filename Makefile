@@ -1,9 +1,9 @@
 CC				= g++
-CFLAGS		+= -D__USE_SSE_POPCNT__ -O3 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing
+CFLAGS		+= -D__USE_SSE_POPCNT__ -O3 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing -fno-operator-names
 CFLAGS		+= -floop-optimize -march=native
 WFLAGS		= -Wall
 LDFLAGS		= -L/usr/local/lib
-INCLUDE		= -I./include -I$(HOME)/local/include/ -I../opti
+INCLUDE		= -I./include -I$(HOME)/local/include/ -I../opti -I../xbyak/
 LIBS			= -msse4 -lglog -L$(HOME)/local/lib
 SRCS			= test/run_query.cpp
 OBJS			= $(subst .cpp,.o,$(SRCS))

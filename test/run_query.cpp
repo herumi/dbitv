@@ -22,6 +22,7 @@
 
 #include "SuccinctBitVector.hpp"
 #include "rank.hpp"
+#include "xbyak/xbyak_util.h"
 
 namespace {
 
@@ -85,7 +86,7 @@ void __show_result(std::vector<double>& tv,
 
   printf(" Total Time(count:%d): %lf\n", count, t);
   printf(" Throughputs(query/sec): %lf\n", count / t);
-  printf(" Unit Speed(sec/query): %lfns\n", t * 1000000000 / count);
+  printf(" Unit Speed(sec/query): %lfclk\n", t / count);
 }
 
 } /* namespace */
@@ -151,7 +152,8 @@ int main(int argc, char **argv) {
     /* A benchmark for rank */
     uint32_t chk = 0;
     for (size_t i = 0; i < NTRIALS; i++) {
-      Timer t;
+      Xbyak::util::Clock clk;
+      clk.begin();
 
 #if 1
       for (int j = 0; j < nloop; j++) {
@@ -161,8 +163,8 @@ int main(int argc, char **argv) {
       for (int j = 0; j < nloop; j++)
         bv.rank((rkwk.get())[j], 1);
 #endif
-
-      rtv.push_back(t.elapsed());
+      clk.end();
+      rtv.push_back((double)clk.getClock());
     }
 
     __show_result(rtv, nloop, "--rank");
@@ -172,18 +174,21 @@ int main(int argc, char **argv) {
     chk = 0;
     rtv.clear();
     for (size_t i = 0; i < NTRIALS; i++) {
-      Timer t;
+      Xbyak::util::Clock clk;
+      clk.begin();
 
       for (int j = 0; j < nloop; j++) {
         chk += my_sbv.rank1((rkwk.get())[j]);
       }
 
-      rtv.push_back(t.elapsed());
+      clk.end();
+      rtv.push_back((double)clk.getClock());
     }
     __show_result(rtv, nloop, "--my_rank");
     printf("my chk=%u\n", chk);
 #endif
 
+#if 0
     /* A benchmark for select */
     for (size_t i = 0; i < NTRIALS; i++) {
       Timer t;
@@ -195,6 +200,7 @@ int main(int argc, char **argv) {
     }
 
     __show_result(stv, nloop, "--select");
+#endif
   }
 
   return EXIT_SUCCESS;
