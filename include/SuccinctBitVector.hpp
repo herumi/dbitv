@@ -7,13 +7,7 @@
  *  Copyright 2012 Takeshi Yamamuro <linguin.m.s_at_gmail.com>
  *-----------------------------------------------------------------------------
  */
-
-#ifndef __SUCCINCTBITVECTOR_HPP__
-#define __SUCCINCTBITVECTOR_HPP__
-
-#ifndef __STDC_LIMIT_MACROS
-  #define __STDC_LIMIT_MACROS
-#endif
+#pragma once
 
 #include <cstdlib>
 #include <cstdint>
@@ -23,12 +17,10 @@
 #include <vector>
 #include <memory>
 
-#define NDEBUG
-
 namespace succinct {
 namespace dense {
 
-#if  defined(__GNUC__) && __GNUC_PREREQ(2, 2)
+#if defined(__GNUC__) && __GNUC_PREREQ(2, 2)
  #define  __USE_POSIX_MEMALIGN__
 #endif
 
@@ -81,8 +73,13 @@ static uint8_t selectPos8(uint32_t d, int r) {
   uint32_t ret = 0;
 
   /* NOTE: A input for bsf MUST NOT be 0 */
-  for (int i = 0; i < r + 1; i++, d ^= 1 << ret)
+  for (int i = 0; i < r + 1; i++, d ^= 1 << ret) {
+#ifdef _MSC_VER
+    ret = _BitScanForward(&d, d);
+#else
     __asm__("bsf %1, %0;" :"=r"(ret) :"r"(d));
+#endif
+  }
 
   return ret;
 }
@@ -180,8 +177,8 @@ class BitVector {
   }
 
  private:
-  uint64_t  size_; 
-  uint64_t  none_; 
+  uint64_t  size_;
+  uint64_t  none_;
   std::vector<block_t>  B_;
 }; /* BitVector */
 
@@ -456,5 +453,3 @@ class SuccinctBitVector {
 
 } /* dense */
 } /* succinct */
-
-#endif /* __SUCCINCTBITVECTOR_HPP__ */
