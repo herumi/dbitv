@@ -8,10 +8,6 @@
  *-----------------------------------------------------------------------------
  */
 
-#include <sys/time.h>
-#include <cmdline.h>
-#include <glog/logging.h>
-
 #include <cstdio>
 #include <cstdarg>
 #include <cstdlib>
@@ -23,67 +19,21 @@
 #include "SuccinctBitVector.hpp"
 #include "rank.hpp"
 #include "xbyak/xbyak_util.h"
+#include "util.hpp"
 
 namespace {
+
 
 const double BIT_DENSITY = 0.50;
 const size_t NTRIALS = 11;
 
-class Timer {
- public:
-  Timer() : base_(get_time()) {}
-  ~Timer() throw() {  }
-
-  double elapsed() const {
-    return get_time() - base_;
-  }
-
-  void reset() {
-    base_ = get_time();
-  }
-
- private:
-  double  base_;
-
-  static double get_time() {
-    struct timeval  tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec + static_cast<double>(tv.tv_usec*1e-6);
-  }
-
-  Timer(const Timer &);
-  Timer &operator=(const Timer &);
-};
-
-/* Generate a randomized value */
-uint32_t __xor128() {
-  static uint32_t x = 123456789;
-  static uint32_t y = 362436069;
-  static uint32_t z = 521288629;
-  static uint32_t w = 88675123;
-
-  uint32_t t = (x ^ (x << 11));
-  x = y, y = z, z = w;
-
-  return (w = (w ^ (w >> 19)) ^ (t ^ (t >> 8)));
-}
-
-void __show_result(std::vector<double>& tv,
-                   int count, const char *msg, ...) {
-  if (msg != NULL) {
-    va_list vargs;
-
-    va_start(vargs, msg);
-    vfprintf(stdout, msg, vargs);
-    va_end(vargs);
-
-    printf("\n");
-  }
-
+void show_result(std::vector<double>& tv, int count, const char *msg)
+{
   /* Get the value of median */
-  sort(tv.begin(), tv.end());
+  std::sort(tv.begin(), tv.end());
   double t = tv[tv.size() / 2];
 
+  printf("%s\n", msg);
   printf(" Total Time(count:%d): %lf\n", count, t);
   printf(" Throughputs(query/sec): %lf\n", count / t);
   printf(" Unit Speed(sec/query): %lfclk\n", t / count);
@@ -91,35 +41,41 @@ void __show_result(std::vector<double>& tv,
 
 } /* namespace */
 
-int main(int argc, char **argv) {
-  succinct::dense::SuccinctBitVector  bv;
-  cmdline::parser p;
+int main(int argc, char **argv)
+{
+  int nloop = 10000000;
+  int bsz = 1000000 & ~255; // restriction of rank.hpp
 
-  /* Parse a command line */
-  p.add<int>("nloop", 'l', "loop num (1000-1000000000)",
-             false, 10000000, cmdline::range(1000, 1000000000));
-  p.add<int>("bitsz", 'b', "bit size (1000-1000000000))",
-             false, 1000000, cmdline::range(1000, 1000000000));
+  argc--, argv++;
+  while (argc > 0) {
+    if (argc > 1 && strcmp(*argv, "-l") == 0) {
+      argc--, argv++;
+      nloop = atoi(*argv);
+    } else
+    if (argc > 1 && strcmp(*argv, "-b") == 0) {
+      argc--, argv++;
+      bsz = atoi(*argv);
+    } else
+    {
+      fprintf(stderr, "run_query [-l <loop num>] [-b <bit size>]\n");
+      return 1;
+    }
+    argc--, argv++;
+  }
 
-  p.parse_check(argc, argv);
-
-  google::InitGoogleLogging(argv[0]);
-#ifndef NDEBUG
-  google::LogToStderr();
-#endif /* NDEBUG */
-
-  int nloop = p.get<int>("nloop");
-  int bsz = p.get<int>("bitsz") & ~255; // restriction of rank.hpp
+  bsz &= ~255; // restriction of rank.hpp
 
   /* Generate a sequence of bits */
+  succinct::dense::SuccinctBitVector bv;
   bv.init(bsz);
   mie::BitVector my_bv;
   my_bv.resize(bsz);
+  XorShift128 r;
 
   uint32_t nbits = 0;
   uint64_t thres = (1ULL << 32) * BIT_DENSITY;
   for (int i = 0; i < bsz; i++) {
-    if (__xor128() < thres) {
+    if (r.get() < thres) {
       nbits++;
       bv.set_bit(1, i);
       my_bv.set(i, true);
@@ -131,18 +87,15 @@ int main(int argc, char **argv) {
   my_sbv.init(my_bv.getBlock(), my_bv.getBlockSize());
 
   /* Generate test data-set */
-  std::shared_ptr<uint32_t> rkwk(new uint32_t[nloop],
-                                 std::default_delete<uint32_t>());
-  std::shared_ptr<uint32_t> stwk(new uint32_t[nloop],
-                                 std::default_delete<uint32_t>());
+  std::vector<uint32_t> rkwk(nloop), stwk(nloop);
 
-  CHECK(bsz != 0 && nbits != 0);
+  for (int i = 0; i < nloop; i++) {
+    rkwk[i] = r.get() % bsz;
+  }
 
-  for (int i = 0; i < nloop; i++)
-    (rkwk.get())[i] = __xor128() % bsz;
-
-  for (int i = 0; i < nloop; i++)
-    (stwk.get())[i] = __xor128() % nbits;
+  for (int i = 0; i < nloop; i++) {
+    stwk[i] = r.get() % nbits;
+  }
 
   /* Start benchmarking rank & select */
   {
@@ -155,19 +108,14 @@ int main(int argc, char **argv) {
       Xbyak::util::Clock clk;
       clk.begin();
 
-#if 1
       for (int j = 0; j < nloop; j++) {
-        chk += bv.getRank().rank1((rkwk.get())[j] + 1);
+        chk += bv.getRank().rank1(rkwk[j] + 1);
       }
-#else
-      for (int j = 0; j < nloop; j++)
-        bv.rank((rkwk.get())[j], 1);
-#endif
       clk.end();
       rtv.push_back((double)clk.getClock());
     }
 
-    __show_result(rtv, nloop, "--rank");
+    show_result(rtv, nloop, "--rank");
     printf("   chk=%u\n", chk);
 
 #if 1
@@ -178,13 +126,13 @@ int main(int argc, char **argv) {
       clk.begin();
 
       for (int j = 0; j < nloop; j++) {
-        chk += my_sbv.rank1((rkwk.get())[j]);
+        chk += my_sbv.rank1(rkwk[j]);
       }
 
       clk.end();
       rtv.push_back((double)clk.getClock());
     }
-    __show_result(rtv, nloop, "--my_rank");
+    show_result(rtv, nloop, "--my_rank");
     printf("my chk=%u\n", chk);
 
     chk = 0;
@@ -193,30 +141,15 @@ int main(int argc, char **argv) {
       clk.begin();
 
       for (int j = 0; j < nloop; j++) {
-        chk += bv.rank((rkwk.get())[j], 1);
+        chk += bv.rank(rkwk[j], 1);
       }
       clk.end();
       rtv.push_back((double)clk.getClock());
     }
 
-    __show_result(rtv, nloop, "--rank");
+    show_result(rtv, nloop, "--rank");
     printf("   chk=%u\n", chk);
 #endif
 
-#if 0
-    /* A benchmark for select */
-    for (size_t i = 0; i < NTRIALS; i++) {
-      Timer t;
-
-      for (int j = 0; j < nloop; j++)
-        bv.select((stwk.get())[i], 1);
-
-      stv.push_back(t.elapsed());
-    }
-
-    __show_result(stv, nloop, "--select");
-#endif
   }
-
-  return EXIT_SUCCESS;
 }

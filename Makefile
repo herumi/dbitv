@@ -4,7 +4,7 @@ CFLAGS		+= -floop-optimize -march=native
 WFLAGS		= -Wall
 LDFLAGS		= -L/usr/local/lib
 INCLUDE		= -I./include -I$(HOME)/local/include/ -I../opti -I../xbyak/
-LIBS			= -msse4 -lglog -L$(HOME)/local/lib
+LIBS			= -msse4 -L$(HOME)/local/lib
 SRCS			= test/run_query.cpp
 OBJS			= $(subst .cpp,.o,$(SRCS))
 BENCHMARK	= run_query 

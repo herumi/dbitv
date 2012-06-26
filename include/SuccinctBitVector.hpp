@@ -18,11 +18,10 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <cassert>
 #include <climits>
 #include <vector>
 #include <memory>
-
-#include "glog/logging.h"
 
 #define NDEBUG
 
@@ -74,7 +73,7 @@ static uint32_t popcount(block_t b) {
 #endif /* __USE_SSE_POPCNT__ */
 
 static uint8_t selectPos8(uint32_t d, int r) {
-  CHECK(r < 8);
+  assert(r < 8);
 
   if (d == 0 && r == 0)
     return 0;
@@ -89,7 +88,7 @@ static uint8_t selectPos8(uint32_t d, int r) {
 }
 
 static uint32_t selectPos(block_t blk, uint32_t r) {
-  CHECK(r < 32);
+  assert(r < 32);
 
   uint32_t nblock = 0;
   uint32_t cnt = 0;
@@ -110,7 +109,7 @@ static uint32_t selectPos(block_t blk, uint32_t r) {
 
 #ifdef __USE_POSIX_MEMALIGN__
 static uint32_t *cachealign_alloc(uint64_t size) {
-  CHECK(size != 0);
+  assert(size != 0);
   uint32_t  *p;
   /* NOTE: *lev2 is 64B-aligned so as to avoid cache-misses */
   uint32_t ret = posix_memalign((void **)&p,
@@ -124,7 +123,7 @@ static void cachealign_free(uint32_t *p) {
 }
 #else
 static uint32_t *cachealign_alloc(uint64_t size) {
-  CHECK(size != 0);
+  assert(size != 0);
   /* FIXME: *lev2 NEEDS to be 64B-aligned. */
   uint32_t *p = new uint32_t[size + CACHELINE_SZ];
   return p;
@@ -142,7 +141,7 @@ class BitVector {
   ~BitVector() throw() {}
 
   void init(uint64_t len) {
-    CHECK(len != 0);
+    assert(len != 0);
 
     size_ = len;
 
@@ -152,7 +151,7 @@ class BitVector {
   }
 
   void set_bit(uint8_t bit, uint64_t pos) {
-    CHECK(pos < size_);
+    assert(pos < size_);
 
     if (bit)
       B_[pos / BSIZE] |= 1U << (pos % BSIZE);
@@ -163,12 +162,12 @@ class BitVector {
   }
 
   bool lookup(uint64_t pos) const {
-    CHECK(pos < size_);
+    assert(pos < size_);
     return (B_[pos / BSIZE] & (0x01 << (pos % BSIZE))) > 0;
   }
 
   block_t get_block(uint64_t pos) const {
-    CHECK(pos < size_);
+    assert(pos < size_);
     return B_[pos];
   }
 
@@ -202,7 +201,7 @@ class SuccinctRank {
   ~SuccinctRank() throw() {};
 
   uint32_t rank(uint32_t pos, uint32_t bit) const {
-    CHECK(pos < size_);
+    assert(pos < size_);
 
     pos++;
 
@@ -236,7 +235,7 @@ class SuccinctRank {
       }
 
       if (idx % LEVEL2_NUM == 0) {
-        CHECK(nbits - *lev1p <= UINT8_MAX);
+        assert(nbits - *lev1p <= UINT8_MAX);
 
         *lev2p++ = static_cast<uint8_t>(nbits - *lev1p);
         block_t blk = bv.get_block(idx / BSIZE);
@@ -256,14 +255,14 @@ class SuccinctRank {
 
 public:
   uint32_t rank1(uint32_t pos) const {
-    CHECK(pos <= size_);
+    assert(pos <= size_);
 
     uint32_t *lev1p = mem_.get() + CACHELINE_SZ * (pos / LEVEL1_NUM);
     uint8_t *lev2p = reinterpret_cast<uint8_t *>(lev1p + SIMD_ALIGN);
 
     uint32_t offset = (pos / LEVEL2_NUM) % (LEVEL1_NUM /LEVEL2_NUM);
 
-    CHECK(offset < LEVEL1_NUM / LEVEL2_NUM);
+    assert(offset < LEVEL1_NUM / LEVEL2_NUM);
 
     uint32_t r = *lev1p + *(lev2p + offset);
 
@@ -290,14 +289,14 @@ class SuccinctSelect {
   ~SuccinctSelect() throw() {};
 
   uint32_t select(uint32_t pos) const {
-    CHECK(pos < size_);
+    assert(pos < size_);
 
     /* Search the position on LEVEL1 */
     uint32_t lev1pos = rkQ_->rank(pos, 1) - 1;
 
     uint32_t *lev1p = rk_->get_mem().get() + CACHELINE_SZ * lev1pos;
 
-    CHECK(pos >= cumltv(*lev1p, lev1pos * LEVEL1_NUM, bit_));
+    assert(pos >= cumltv(*lev1p, lev1pos * LEVEL1_NUM, bit_));
 
     uint8_t lpos = pos - cumltv(*lev1p, lev1pos * LEVEL1_NUM, bit_);
 
@@ -312,7 +311,7 @@ class SuccinctSelect {
     } while (++lev2pos < LEVEL1_NUM / LEVEL2_NUM - 1);
 
     /* Count the left bits */
-    CHECK(lpos >= cumltv(*(lev2p + lev2pos), lev2pos * LEVEL2_NUM, bit_));
+    assert(lpos >= cumltv(*(lev2p + lev2pos), lev2pos * LEVEL2_NUM, bit_));
 
     uint32_t rem = lpos - cumltv(*(lev2p + lev2pos),
                                  lev2pos * LEVEL2_NUM, bit_);
