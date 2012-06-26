@@ -186,6 +186,21 @@ int main(int argc, char **argv) {
     }
     __show_result(rtv, nloop, "--my_rank");
     printf("my chk=%u\n", chk);
+
+    chk = 0;
+    for (size_t i = 0; i < NTRIALS; i++) {
+      Xbyak::util::Clock clk;
+      clk.begin();
+
+      for (int j = 0; j < nloop; j++) {
+        chk += bv.rank((rkwk.get())[j], 1);
+      }
+      clk.end();
+      rtv.push_back((double)clk.getClock());
+    }
+
+    __show_result(rtv, nloop, "--rank");
+    printf("   chk=%u\n", chk);
 #endif
 
 #if 0
