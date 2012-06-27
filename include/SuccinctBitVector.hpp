@@ -16,13 +16,10 @@
 #include <climits>
 #include <vector>
 #include <memory>
+#include "util.hpp"
 
 namespace succinct {
 namespace dense {
-
-#if defined(__GNUC__) && __GNUC_PREREQ(2, 2)
- #define  __USE_POSIX_MEMALIGN__
-#endif
 
 /* Defined by BSIZE */
 typedef uint32_t  block_t;
@@ -75,7 +72,7 @@ static uint8_t selectPos8(uint32_t d, int r) {
   /* NOTE: A input for bsf MUST NOT be 0 */
   for (int i = 0; i < r + 1; i++, d ^= 1 << ret) {
 #ifdef _MSC_VER
-    ret = _BitScanForward(&d, d);
+    ret = _BitScanForward((unsigned long*)&d, d);
 #else
     __asm__("bsf %1, %0;" :"=r"(ret) :"r"(d));
 #endif
@@ -104,33 +101,14 @@ static uint32_t selectPos(block_t blk, uint32_t r) {
       selectPos8((blk >> (nblock * 8)) & 0xff, r);
 }
 
-#ifdef __USE_POSIX_MEMALIGN__
 static uint32_t *cachealign_alloc(uint64_t size) {
   assert(size != 0);
-  uint32_t  *p;
-  /* NOTE: *lev2 is 64B-aligned so as to avoid cache-misses */
-  uint32_t ret = posix_memalign((void **)&p,
-                       DWORD2BYTE(CACHELINE_SZ), DWORD2BYTE(size));
-  return (ret == 0)? p : NULL;
+  return (uint32_t*)_aligned_malloc(DWORD2BYTE(size), DWORD2BYTE(CACHELINE_SZ));
 }
 
 static void cachealign_free(uint32_t *p) {
-  if (p == NULL) return;
-  free(p);
+  _aligned_free(p);
 }
-#else
-static uint32_t *cachealign_alloc(uint64_t size) {
-  assert(size != 0);
-  /* FIXME: *lev2 NEEDS to be 64B-aligned. */
-  uint32_t *p = new uint32_t[size + CACHELINE_SZ];
-  return p;
-}
-
-static void cachealign_free(uint32_t *p) {
-  if (p == NULL) return;
-  delete[] p;
-}
-#endif /* __USE_POSIX_MEMALIGN__ */
 
 class BitVector {
  public:
