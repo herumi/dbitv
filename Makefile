@@ -1,5 +1,5 @@
 CC				= g++
-CFLAGS		+= -D__USE_SSE_POPCNT__ -O3 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing -fno-operator-names
+CFLAGS		+= -D__USE_SSE_POPCNT__ -O3 -std=gnu++0x -fomit-frame-pointer -fstrict-aliasing -fno-operator-names -g
 CFLAGS		+= -floop-optimize -march=native
 WFLAGS		= -Wall
 LDFLAGS		= -L/usr/local/lib
