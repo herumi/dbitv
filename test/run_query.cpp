@@ -9,9 +9,6 @@
  */
 
 #include <cstdio>
-#include <cstdarg>
-#include <cstdlib>
-#include <ctime>
 #include <memory>
 #include <algorithm>
 #include <vector>
@@ -23,11 +20,13 @@
 
 namespace {
 
+typedef std::vector<double> DoubleVec;
+typedef std::vector<uint32_t> Uint32Vec;
 
 const double BIT_DENSITY = 0.50;
 const size_t NTRIALS = 11;
 
-void show_result(std::vector<double>& tv, int count, const char *msg)
+void show_result(DoubleVec& tv, int count, const char *msg)
 {
   /* Get the value of median */
   std::sort(tv.begin(), tv.end());
@@ -40,6 +39,37 @@ void show_result(std::vector<double>& tv, int count, const char *msg)
 }
 
 } /* namespace */
+
+size_t getRank(const succinct::dense::SuccinctRank& r, size_t pos)
+{
+  return r.rank1(pos + 1);
+}
+
+size_t getRank(const mie::SuccinctBitVector& sb, size_t pos)
+{
+  return sb.rank1(pos);
+}
+
+template<class T>
+void bench(const T& t, const Uint32Vec& rkwk, int nloop, const char *msg)
+{
+  uint32_t chk = 0;
+  DoubleVec rtv;
+
+  for (size_t i = 0; i < NTRIALS; i++) {
+    Xbyak::util::Clock clk;
+    clk.begin();
+
+    for (int j = 0; j < nloop; j++) {
+      chk += getRank(t, rkwk[j]);
+    }
+
+    clk.end();
+    rtv.push_back((double)clk.getClock());
+  }
+  show_result(rtv, nloop, msg);
+  printf("chk=%u\n", chk);
+}
 
 int main(int argc, char **argv)
 {
@@ -87,69 +117,15 @@ int main(int argc, char **argv)
   my_sbv.init(my_bv.getBlock(), my_bv.getBlockSize());
 
   /* Generate test data-set */
-  std::vector<uint32_t> rkwk(nloop), stwk(nloop);
+  Uint32Vec rkwk(nloop);
 
   for (int i = 0; i < nloop; i++) {
     rkwk[i] = r.get() % bsz;
   }
 
-  for (int i = 0; i < nloop; i++) {
-    stwk[i] = r.get() % nbits;
-  }
-
-  /* Start benchmarking rank & select */
-  {
-    std::vector<double> rtv;
-    std::vector<double> stv;
-
-    /* A benchmark for rank */
-    uint32_t chk = 0;
-    for (size_t i = 0; i < NTRIALS; i++) {
-      Xbyak::util::Clock clk;
-      clk.begin();
-
-      for (int j = 0; j < nloop; j++) {
-        chk += bv.getRank().rank1(rkwk[j] + 1);
-      }
-      clk.end();
-      rtv.push_back((double)clk.getClock());
-    }
-
-    show_result(rtv, nloop, "--rank");
-    printf("   chk=%u\n", chk);
-
-#if 1
-    chk = 0;
-    rtv.clear();
-    for (size_t i = 0; i < NTRIALS; i++) {
-      Xbyak::util::Clock clk;
-      clk.begin();
-
-      for (int j = 0; j < nloop; j++) {
-        chk += my_sbv.rank1(rkwk[j]);
-      }
-
-      clk.end();
-      rtv.push_back((double)clk.getClock());
-    }
-    show_result(rtv, nloop, "--my_rank");
-    printf("my chk=%u\n", chk);
-
-    chk = 0;
-    for (size_t i = 0; i < NTRIALS; i++) {
-      Xbyak::util::Clock clk;
-      clk.begin();
-
-      for (int j = 0; j < nloop; j++) {
-        chk += bv.rank(rkwk[j], 1);
-      }
-      clk.end();
-      rtv.push_back((double)clk.getClock());
-    }
-
-    show_result(rtv, nloop, "--rank");
-    printf("   chk=%u\n", chk);
-#endif
-
-  }
+  bench(bv.getRank(), rkwk, nloop, "org rank");
+  bench(my_sbv, rkwk, nloop, "mie rank");
+  bench(bv.getRank(), rkwk, nloop, "org rank");
+  bench(my_sbv, rkwk, nloop, "mie rank");
 }
+
