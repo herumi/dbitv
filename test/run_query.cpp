@@ -1,3 +1,28 @@
+/*
+  modified by herumi
+  require https://github.com/herumi/opti, https://github.com/herumi/xbyak
+
+  extra memory[bit]  rate
+  maropu  192/256      6
+  tbl512  128/512      2
+  tbl1Ki  128/1024     1
+
+  benchmark
+  dbitv% foreach i (1000000 5000000 10000000 50000000 100000000 500000000 1000000000)
+
+
+        clk @Core i7-2600(L3 8MiB) 3.4GHz + gcc 4.6.3
+            1e6   5e6   1e7   5e7   1e8    5e8    1e9
+   maropu 15.78 18.84 22.85 70.11 83.82 101.82 110.48
+   tbl512 13.20 16.30 17.00 47.59 66.62  84.01  96.09
+   tbl1Ki 20.39 24.12 25.11 53.38 89.02 113.30 125.10
+
+        clk @Xeon X5650(L3 12MiB) + gcc 4.6.3
+            1e6   5e6   1e7   5e7   1e8    5e8    1e9
+   maropu 16.34 19.99 21.70 39.53 57.83  72.94  73.37
+   tbl512 13.39 19.04 20.61 26.58 47.76  68.21  72.69
+   tbl1Ki 20.49 25.86 27.03 32.38 56.52  88.40  92.96
+*/
 /*-----------------------------------------------------------------------------
  *  run_benchmark.cpp - A benchmark for SuccinctBitVector.hpp
  *
