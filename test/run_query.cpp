@@ -74,7 +74,7 @@ void bench(const T& t, const Uint32Vec& rkwk, int nloop, const char *msg)
 int main(int argc, char **argv)
 {
   int nloop = 10000000;
-  int bsz = 1000000 & ~255; // restriction of rank.hpp
+  int bsz = 1000000;
 
   argc--, argv++;
   while (argc > 0) {
@@ -93,7 +93,8 @@ int main(int argc, char **argv)
     argc--, argv++;
   }
 
-  bsz &= ~255; // restriction of rank.hpp
+//  bsz &= ~255; // restriction of rank.hpp
+  printf("loop %d, bit size %d\n", nloop, bsz);
 
   /* Generate a sequence of bits */
   succinct::dense::SuccinctBitVector bv;
